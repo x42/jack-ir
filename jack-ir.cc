@@ -478,7 +478,7 @@ print_usage (void)
 	        "For true-stereo this process is repeated to capture responses for left,and\n"
 	        "right channels separately.\n"
 	        "\n"
-	        "Eventually the IR is computed, normalized and trimmed and saved as waf file.\n"
+	        "Eventually the IR is computed, normalized and trimmed and saved as wav file.\n"
 	        "\n"
 	        "Note that this tool is meant for patch-processing of directly connected\n"
 	        "hardware effect units. In order to properly align the IR, it should be used\n"

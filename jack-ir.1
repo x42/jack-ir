@@ -6,7 +6,7 @@ jack-ir \- JACK Impulse Response Recorder
 .B jack_ir
 [ \fI\,OPTIONS \/\fR] [ \fI\,OUT-FILE \/\fR]
 .SH DESCRIPTION
-jack\-ir JACK Impulse Response Capture Utility
+jack\-ir \- JACK Impulse Response Capture Utility
 .PP
 This is a standalone JACK application to conveniently capture impulse
 responses of external devices.
@@ -50,6 +50,9 @@ Display this help and exit
 \fB\-c\fR, \fB\-\-capture\fR <port>
 Add channel, specify source\-port to connect to
 .TP
+\fB\-C\fR <sec>
+Max capture length (default 15s)
+.TP
 \fB\-p\fR, \fB\-\-playback\fR <port>
 Add playback\-port to connect to
 .TP
@@ -58,6 +61,9 @@ Set the JACK client name
 .TP
 \fB\-L\fR, \fB\-\-latency\fR <int>
 Specify custom round\-trip latency (audio\-samples)
+.TP
+\fB\-S\fR <sec>
+Silence between true\-stereo captures (default: 1s)
 .TP
 \fB\-T\fR, \fB\-\-true\-stereo\fR
 4 channel, true stereo IR. This needs 2 capture,
@@ -76,7 +82,7 @@ If the OUT\-FILE parameter is not given, 'ir.wav' is used.
 .SH EXAMPLES
 jack\-ir \-c system:capture_1 \-p system:playback_1
 .PP
-jack\-ir \-c system:capture_1 \-c system:capture_2 \-p system:playback_1 irfile.wav
+jack\-ir \-c system:capture_1 \-c system:capture_2 \-p system:playback_1 mono_to_stereo.wav
 .PP
 jack\-ir \-T \-c system:capture_3 \-c system:capture_4 \-p system:playback_5 \-p system:playback_6
 .SH "REPORTING BUGS"

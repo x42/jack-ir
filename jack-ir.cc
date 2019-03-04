@@ -352,7 +352,7 @@ trim_end (uint32_t n_channels, uint32_t rate, uint32_t n_samples, float** data)
 }
 
 static float
-normalize_peak (uint32_t n_channels, uint32_t n_samples, float** data)
+digital_peak (uint32_t n_channels, uint32_t n_samples, float** data)
 {
 	float sig_max = 0;
 	for (uint32_t c = 0; c < n_channels; ++c) {
@@ -363,8 +363,14 @@ normalize_peak (uint32_t n_channels, uint32_t n_samples, float** data)
 			}
 		}
 	}
+	return sig_max;
+}
 
-	float target = pow10f (.05 * -3);
+static float
+normalize_peak (uint32_t n_channels, uint32_t n_samples, float** data)
+{
+	float sig_max = digital_peak (n_channels, n_samples, data);
+	float target  = pow10f (.05 * -3);
 
 	if (sig_max == 0 || sig_max > target) {
 		return 1.0;
@@ -486,9 +492,11 @@ print_usage (void)
 	        "Options:\n"
 	        " -h, --help                Display this help and exit\n"
 	        " -c, --capture <port>      Add channel, specify source-port to connect to\n"
+	        " -C <sec>                  Max capture length (default 15s)\n"
 	        " -p, --playback <port>     Add playback-port to connect to\n"
 	        " -j, --jack-name <name>    Set the JACK client name\n"
 	        " -L, --latency <int>       Specify custom round-trip latency (audio-samples)\n"
+	        " -S <sec>                  Silence between true-stereo captures (default: 1s)\n"
 	        " -T, --true-stereo         4 channel, true stereo IR. This needs 2 capture,\n"
 	        "                           and 2 playback channels.\n"
 	        " -q, --quiet               Inhibit non-error messages\n"
@@ -499,7 +507,7 @@ print_usage (void)
 	printf ("\n"
 	        "Examples:\n"
 	        "jack-ir -c system:capture_1 -p system:playback_1\n\n"
-	        "jack-ir -c system:capture_1 -c system:capture_2 -p system:playback_1 irfile.wav\n\n"
+	        "jack-ir -c system:capture_1 -c system:capture_2 -p system:playback_1 mono_to_stereo.wav\n\n"
 	        "jack-ir -T -c system:capture_3 -c system:capture_4 -p system:playback_5 -p system:playback_6\n\n");
 
 	printf ("Report bugs at <https://github.com/x42/jack-ir/issues>\n");
@@ -533,6 +541,7 @@ main (int argc, char** argv)
 	float sweep_max = 20000.f; // Hz
 	float sweep_sec = 10.f;    // sec (without fades)
 	float irrec_sec = 15.f;    // sec
+	float t_silence = 1.f;     // sec
 
 	std::string outfile = "ir.wav";
 
@@ -552,11 +561,14 @@ main (int argc, char** argv)
 	};
 	/* clang-format on */
 
-	const char* optstring = "c:hj:L:p:TqVy";
+	const char* optstring = "C:c:hj:L:p:S:TqVy";
 
 	int c;
 	while ((c = getopt_long (argc, argv, optstring, long_options, NULL)) != -1) {
 		switch (c) {
+			case 'C':
+				irrec_sec = atof (optarg);
+				break;
 			case 'c':
 				capt.push_back (optarg);
 				break;
@@ -572,6 +584,9 @@ main (int argc, char** argv)
 				break;
 			case 'p':
 				play.push_back (optarg);
+				break;
+			case 'S':
+				t_silence = std::min (10.f, std::max (1.f, (float)atof (optarg)));
 				break;
 			case 'T':
 				true_stereo = true;
@@ -604,14 +619,6 @@ main (int argc, char** argv)
 		outfile = argv[optind];
 	}
 
-	if (file_exists (outfile)) {
-		if (!overwrite) {
-			fprintf (stderr, "Error: IR file exists ('%s')\n", outfile.c_str ());
-			return -1;
-		}
-		fprintf (stderr, "Warning: replacing IR ('%s')\n", outfile.c_str ());
-	}
-
 	n_inputs  = capt.size ();
 	n_outputs = play.size ();
 
@@ -625,6 +632,19 @@ main (int argc, char** argv)
 			fprintf (stderr, "True-Stereo needs stereo I/O\n");
 			return -1;
 		}
+	}
+
+	if (irrec_sec < sweep_sec + .5f || irrec_sec > 30.f) {
+		fprintf (stderr, "Capture lenght is out of bounds %.1f < len <= 30.0 [sec]\n", sweep_sec + .5f);
+		return -1;
+	}
+
+	if (file_exists (outfile)) {
+		if (!overwrite) {
+			fprintf (stderr, "Error: IR file exists ('%s')\n", outfile.c_str ());
+			return -1;
+		}
+		fprintf (stderr, "Warning: replacing IR ('%s')\n", outfile.c_str ());
 	}
 
 	if (true_stereo) {
@@ -663,7 +683,7 @@ main (int argc, char** argv)
 	}
 
 	if (true_stereo) {
-		true_stereo_pass = rate; // 1 sec delay between sweeps
+		true_stereo_pass = rate * t_silence;
 	}
 
 	/* prepare sweep */
@@ -767,7 +787,9 @@ main (int argc, char** argv)
 	while (client_state == Run) {
 		sleep (1);
 		if (!quiet) {
-			printf ("Processing: %4.0f%%    \r", std::min (100.f, 100.f * proc_tot / n_max));
+			printf ("Processing: %3.0f%% (%c) \r",
+			        std::min (100.f, 100.f * proc_tot / n_max),
+			        proc_pos < sweep_len ? 'P' : 'C');
 			fflush (stdout);
 		}
 	}
@@ -777,6 +799,17 @@ main (int argc, char** argv)
 
 	/* post-process, if capture was not aborted */
 	if (client_state == Exit) {
+		float in_peak = digital_peak (n_ir, sweep_len + irrec_len, ir);
+
+		if (!quiet) {
+			printf ("Input signal peak: %.2fdBFS\n", 20 * log (in_peak));
+		}
+
+		if (in_peak >= .98) {
+			fprintf (stderr, "Input signal clipped!\n");
+			goto out;
+		}
+
 		if (convolv (n_ir, sweep_len + irrec_len, ir)) {
 			fprintf (stderr, "Deconvolution failed\n");
 			goto out;
@@ -784,13 +817,10 @@ main (int argc, char** argv)
 
 		float g = normalize_peak (n_ir, sweep_len + irrec_len, ir);
 		if (!quiet) {
-			printf ("Normalized, gain-factor: %.2fdB\n", 20 * log (g));
+			printf ("Normalized IR, gain-factor: %.2fdB\n", 20 * log (g));
 		}
 
 		uint32_t trimed_len = trim_end (n_ir, rate, sweep_len + irrec_len, ir);
-		if (!quiet) {
-			printf ("Trimmed length: %.1f [sec] = %d [spl]\n", trimed_len / (float)rate, trimed_len);
-		}
 
 		int lat = 0;
 		if (latency > 0) {

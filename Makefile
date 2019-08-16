@@ -9,13 +9,13 @@ VERSION=0.1.1
 ###############################################################################
 
 ifeq ($(shell pkg-config --exists jack || echo no), no)
-	$(error "http://jackaudio.org/ is required - install libjack-dev or libjack-jackd2-dev")
+  $(error "http://jackaudio.org/ is required - install libjack-dev or libjack-jackd2-dev")
 endif
 ifeq ($(shell pkg-config --exists sndfile || echo no), no)
-	$(error "http://www.mega-nerd.com/libsndfile/ is required - install libsndfile1-dev")
+  $(error "http://www.mega-nerd.com/libsndfile/ is required - install libsndfile1-dev")
 endif
-ifeq ($(shell pkg-config --exists sndfile || echo no), no)
-	$(error "http://fftw.org/ is required - install libfftw3-dev")
+ifeq ($(shell pkg-config --exists fftw3f || echo no), no)
+  $(error "http://fftw.org/ is required - install libfftw3-dev")
 endif
 
 CXXFLAGS+=`pkg-config --cflags jack sndfile fftw3f` -pthread

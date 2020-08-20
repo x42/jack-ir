@@ -17,6 +17,10 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include <assert.h>
 #include <errno.h>
 #include <getopt.h>
@@ -302,8 +306,8 @@ convolv (uint32_t n_channels, uint32_t n_samples, float** data)
 static uint32_t
 trim_end (uint32_t n_channels, uint32_t rate, uint32_t n_samples, float** data)
 {
-	float    sig_lvl = pow10f (.05 * -20);
-	float    sig_min = pow10f (.05 * -60);
+	float    sig_lvl = exp10f (.05 * -20);
+	float    sig_min = exp10f (.05 * -60);
 	uint32_t tme_min = rate / 20;
 
 	assert (n_samples > tme_min);
@@ -370,7 +374,7 @@ static float
 normalize_peak (uint32_t n_channels, uint32_t n_samples, float** data)
 {
 	float sig_max = digital_peak (n_channels, n_samples, data);
-	float target  = pow10f (.05 * -3);
+	float target  = exp10f (.05 * -3);
 
 	if (sig_max == 0 || sig_max > target) {
 		return 1.0;

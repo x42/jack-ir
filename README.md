@@ -12,7 +12,7 @@ Install
 jack-ir depends on [libsndfile](http://www.mega-nerd.com/libsndfile/), [fftw](http://fftw.org/) and [jack](http://jackaudio.org/).
 
 ```bash
-git clone git://github.com/x42/jack-ir.git
+git clone https://github.com/x42/jack-ir.git
 cd jack-ir.lv2
 make
 #sudo make install PREFIX=/usr

@@ -484,7 +484,7 @@ print_usage (void)
 	        "\n"
 	        "Eventually the IR is computed, normalized and trimmed and saved as wav file.\n"
 	        "\n"
-	        "Note that this tool is meant for patch-processing of directly connected\n"
+	        "Note that this tool is meant for batch-processing of directly connected\n"
 	        "hardware effect units. In order to properly align the IR, it should be used\n"
 	        "with latency-calibrated jackd.\n"
 	        "\n"
